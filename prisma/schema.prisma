@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  name      String
+  createdAt DateTime   @default(now())
+  detectors Detector[]
+}
+
+model Detector {
+  id          String          @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  status      String          @default("draft") // draft | training | ready | failed
+  config      Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  user        User            @relation(fields: [userId], references: [id])
+  images      TrainingImage[]
+  detections  Detection[]
+
+  @@index([userId])
+}
+
+model TrainingImage {
+  id         String   @id @default(uuid())
+  detectorId String
+  imageUrl   String
+  labels     Json     // [{label: "crack", bbox: {x, y, w, h}}]
+  createdAt  DateTime @default(now())
+  detector   Detector @relation(fields: [detectorId], references: [id])
+
+  @@index([detectorId])
+}
+
+model Detection {
+  id              String   @id @default(uuid())
+  detectorId      String
+  inputImageUrl   String
+  results         Json?    // [{label, confidence, bbox}]
+  status          String   @default("pending") // pending | processing | complete | failed
+  processingTimeMs Int?
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+  detector        Detector @relation(fields: [detectorId], references: [id])
+
+  @@index([detectorId, createdAt])
+}
