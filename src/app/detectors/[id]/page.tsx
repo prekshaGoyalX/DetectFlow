@@ -62,8 +62,8 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     if (!labelName.trim()) {
       alert("Enter a label name first (e.g. 'cat', 'crack', 'defect')");
@@ -73,17 +73,24 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
 
     setUploading(true);
 
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append(
-      "labels",
-      JSON.stringify([{ label: labelName.trim().toLowerCase() }])
-    );
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith("image/")) continue;
 
-    await fetch(`/api/detectors/${id}/images`, {
-      method: "POST",
-      body: formData,
-    });
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append(
+        "labels",
+        JSON.stringify([{ label: labelName.trim().toLowerCase() }])
+      );
+
+      await fetch(`/api/detectors/${id}/images`, {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log(`Uploaded ${i + 1}/${files.length}: ${file.name}`);
+    }
 
     setUploading(false);
     loadImages();
@@ -183,30 +190,59 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                   All images uploaded will be labeled with this name
                 </p>
               </div>
-              <label className="block">
-                <div
-                  className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${
-                    labelName.trim()
-                      ? "border-gray-300 hover:border-gray-400"
-                      : "border-gray-200 opacity-50 cursor-not-allowed"
-                  }`}
-                >
-                  <p className="text-gray-500 text-sm">
-                    {uploading
-                      ? "Uploading..."
-                      : labelName.trim()
-                        ? `Click to upload images labeled "${labelName}"`
-                        : "Enter a label name above first"}
-                  </p>
-                  <p className="text-gray-400 text-xs mt-1">JPG, PNG — any size</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleUpload}
-                    className="hidden"
-                    disabled={uploading || !labelName.trim()}
-                  />
+                <label className="block">
+                <div className="flex gap-3">
+                  <label
+                    className={`flex-1 border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${
+                      labelName.trim()
+                        ? "border-gray-300 hover:border-gray-400"
+                        : "border-gray-200 opacity-50 cursor-not-allowed"
+                    }`}
+                  >
+                    <p className="text-gray-500 text-sm font-medium">
+                      {uploading ? `Uploading...` : "📁 Select Files"}
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {labelName.trim()
+                        ? `Upload one or more images as "${labelName}"`
+                        : "Enter a label name first"}
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleUpload}
+                      className="hidden"
+                      disabled={uploading || !labelName.trim()}
+                    />
+                  </label>
+
+                  <label
+                    className={`flex-1 border-2 border-dashed rounded-xl p-6 text-center transition cursor-pointer ${
+                      labelName.trim()
+                        ? "border-gray-300 hover:border-gray-400"
+                        : "border-gray-200 opacity-50 cursor-not-allowed"
+                    }`}
+                  >
+                    <p className="text-gray-500 text-sm font-medium">
+                      {uploading ? `Uploading...` : "📂 Select Folder"}
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {labelName.trim()
+                        ? `Upload entire folder as "${labelName}"`
+                        : "Enter a label name first"}
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                      onChange={handleUpload}
+                      className="hidden"
+                      disabled={uploading || !labelName.trim()}
+                    />
+                  </label>
                 </div>
               </label>
             </div>
