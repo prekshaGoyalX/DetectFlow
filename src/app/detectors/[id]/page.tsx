@@ -140,6 +140,20 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
     helmet: "#6366f1",
   };
 
+  const uniqueLabels = Array.from(
+    new Set(
+      images.flatMap((img) =>
+        img.labels.map((l) => l.label).filter(Boolean)
+      )
+    )
+  );
+
+  const filteredImages = labelName.trim()
+    ? images.filter((img) =>
+        img.labels.some((l) => l.label === labelName.trim().toLowerCase())
+      )
+    : images;
+
   if (!detector) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading...</div>;
   }
@@ -182,7 +196,7 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
             <div className="mb-6 space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Label Name
+                  New Label Name
                 </label>
                 <input
                   type="text"
@@ -194,6 +208,32 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                   All images uploaded will be labeled with this name
                 </p>
               </div>
+                {uniqueLabels.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Existing labels — click to select:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {uniqueLabels.map((label) => {
+                        const count = images.filter((img) =>
+                          img.labels.some((l) => l.label === label)
+                        ).length;
+                        const isSelected = labelName === label;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => setLabelName(isSelected ? "" : label)}
+                            className={`text-sm px-3 py-1 rounded-full transition ${
+                              isSelected
+                                ? "bg-gray-900 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            {label} <span className="opacity-60">({count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <label className="block">
                 <div className="flex gap-3">
                   <label
@@ -251,11 +291,26 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
               </label>
             </div>
 
-            {images.length === 0 ? (
-              <p className="text-gray-400 text-center py-10">No training images yet</p>
+            {labelName.trim() && images.length > 0 && (
+              <p className="text-sm text-gray-500 mb-3">
+                Showing {filteredImages.length} of {images.length} images
+                {filteredImages.length !== images.length && (
+                  <button
+                    onClick={() => setLabelName("")}
+                    className="ml-2 text-gray-400 hover:text-gray-600 underline"
+                  >
+                    show all
+                  </button>
+                )}
+              </p>
+            )}
+            {filteredImages.length === 0 ? (
+              <p className="text-gray-400 text-center py-10">{images.length === 0
+                  ? "No training images yet"
+                  : `No images labeled "${labelName}"`}</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {images.map((img) => (
+                {filteredImages.map((img) => (
                   <div key={img.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <img src={img.imageUrl} alt="" className="w-full h-40 object-cover" />
                     <div className="p-3">
