@@ -7,14 +7,14 @@ import Link from "next/link";
 interface TrainingImage {
   id: string;
   imageUrl: string;
-  labels: { label: string; bbox: { x: number; y: number; w: number; h: number } }[];
+  labels: { label: string }[];
   createdAt: string;
 }
 
 interface Detection {
   id: string;
   inputImageUrl: string;
-  results: { label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number } }[] | null;
+  results: { label: string; confidence: number }[] | null;
   status: string;
   processingTimeMs: number | null;
   createdAt: string;
@@ -35,6 +35,7 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
   const [tab, setTab] = useState<"train" | "detect">("train");
   const [uploading, setUploading] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [labelName, setLabelName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detectInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,11 +64,21 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!labelName.trim()) {
+      alert("Enter a label name first (e.g. 'cat', 'crack', 'defect')");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
 
     const formData = new FormData();
     formData.append("image", file);
-    formData.append("labels", JSON.stringify([]));
+    formData.append(
+      "labels",
+      JSON.stringify([{ label: labelName.trim().toLowerCase() }])
+    );
 
     await fetch(`/api/detectors/${id}/images`, {
       method: "POST",
@@ -93,7 +104,6 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
     });
     const data = await res.json();
 
-    // Poll for results
     const detectionId = data.detection.id;
     const poll = setInterval(async () => {
       const result = await fetchAPI(`/detections/${detectionId}`);
@@ -108,11 +118,15 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
   }
 
   const labelColors: Record<string, string> = {
+    cat: "#3b82f6",
+    dog: "#f59e0b",
     crack: "#ef4444",
     scratch: "#f59e0b",
     dent: "#3b82f6",
     corrosion: "#8b5cf6",
     good: "#10b981",
+    defect: "#ef4444",
+    helmet: "#6366f1",
   };
 
   if (!detector) {
@@ -154,11 +168,35 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
         {/* Training Tab */}
         {tab === "train" && (
           <div>
-            <div className="mb-6">
+            <div className="mb-6 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Label Name
+                </label>
+                <input
+                  type="text"
+                  value={labelName}
+                  onChange={(e) => setLabelName(e.target.value)}
+                  placeholder="e.g. cat, crack, defect, helmet"
+                  className="w-full max-w-xs border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"                />
+                <p className="text-xs text-gray-400 mt-1">
+                  All images uploaded will be labeled with this name
+                </p>
+              </div>
               <label className="block">
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition cursor-pointer">
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${
+                    labelName.trim()
+                      ? "border-gray-300 hover:border-gray-400"
+                      : "border-gray-200 opacity-50 cursor-not-allowed"
+                  }`}
+                >
                   <p className="text-gray-500 text-sm">
-                    {uploading ? "Uploading..." : "Click to upload training images"}
+                    {uploading
+                      ? "Uploading..."
+                      : labelName.trim()
+                        ? `Click to upload images labeled "${labelName}"`
+                        : "Enter a label name above first"}
                   </p>
                   <p className="text-gray-400 text-xs mt-1">JPG, PNG — any size</p>
                   <input
@@ -167,7 +205,7 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                     accept="image/*"
                     onChange={handleUpload}
                     className="hidden"
-                    disabled={uploading}
+                    disabled={uploading || !labelName.trim()}
                   />
                 </div>
               </label>
@@ -211,7 +249,7 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
               <label className="block">
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition cursor-pointer">
                   <p className="text-gray-500 text-sm">
-                    {detecting ? "Running detection..." : "Click to upload an image for detection"}
+                    {detecting ? "Running classification..." : "Click to upload an image for classification"}
                   </p>
                   <input
                     ref={detectInputRef}
@@ -232,38 +270,16 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                 {detections.map((det) => (
                   <div key={det.id} className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex gap-4">
-                      {/* Image with bounding boxes */}
-                      <div className="relative w-64 h-48 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                      <div className="w-48 h-36 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                         <img
                           src={det.inputImageUrl}
                           alt=""
                           className="w-full h-full object-cover"
                         />
-                        {det.results?.map((r, i) => (
-                          <div
-                            key={i}
-                            className="absolute border-2 rounded"
-                            style={{
-                              left: `${(r.bbox.x / 400) * 100}%`,
-                              top: `${(r.bbox.y / 400) * 100}%`,
-                              width: `${(r.bbox.w / 400) * 100}%`,
-                              height: `${(r.bbox.h / 400) * 100}%`,
-                              borderColor: labelColors[r.label] || "#6b7280",
-                            }}
-                          >
-                            <span
-                              className="absolute -top-5 left-0 text-xs px-1 rounded text-white whitespace-nowrap"
-                              style={{ backgroundColor: labelColors[r.label] || "#6b7280" }}
-                            >
-                              {r.label} {Math.round(r.confidence * 100)}%
-                            </span>
-                          </div>
-                        ))}
                       </div>
 
-                      {/* Results */}
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <span
                             className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                               det.status === "complete"
@@ -281,22 +297,38 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                             </span>
                           )}
                         </div>
+
                         {det.results && (
-                          <div className="space-y-1">
-                            {det.results.map((r, i) => (
-                              <div key={i} className="flex items-center gap-2 text-sm">
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full"
-                                  style={{ backgroundColor: labelColors[r.label] || "#6b7280" }}
-                                />
-                                <span className="text-gray-700">{r.label}</span>
-                                <span className="text-gray-400">
-                                  {Math.round(r.confidence * 100)}%
-                                </span>
-                              </div>
-                            ))}
+                          <div className="space-y-2">
+                            {(det.results as { label: string; confidence: number }[]).map(
+                              (r, i) => (
+                                <div key={i} className="space-y-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-gray-700">{r.label}</span>
+                                    <span className="text-gray-500">
+                                      {Math.round(r.confidence * 100)}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div
+                                      className="h-2 rounded-full transition-all"
+                                      style={{
+                                        width: `${r.confidence * 100}%`,
+                                        backgroundColor:
+                                          r.confidence > 0.7
+                                            ? "#10b981"
+                                            : r.confidence > 0.4
+                                              ? "#f59e0b"
+                                              : "#ef4444",
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            )}
                           </div>
                         )}
+
                         <p className="text-xs text-gray-400 mt-3">
                           {new Date(det.createdAt).toLocaleString()}
                         </p>

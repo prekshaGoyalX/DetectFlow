@@ -41,7 +41,7 @@ export default function Dashboard() {
     await fetchAPI("/detectors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, userId: USER_ID }),
+      body: JSON.stringify({ name, description, userId: USER_ID}),
     });
     setName("");
     setDescription("");
@@ -91,7 +91,7 @@ export default function Dashboard() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Weld Crack Detector"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
                 required
               />
             </div>
@@ -104,7 +104,7 @@ export default function Dashboard() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What should this detector find?"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
             <div className="flex gap-2">

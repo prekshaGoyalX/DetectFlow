@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { saveFile, parseFormData } from "@/lib/upload";
-import { runObjectDetection } from "@/lib/inference";
+import { runClassification } from "@/lib/inference";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -38,11 +38,9 @@ export async function POST(
     },
   });
 
-  // Run inference in background
   const startTime = Date.now();
 
-  // Don't await — let it run async
-  runObjectDetection(file.buffer)
+  runClassification(file.buffer, detectorId)
     .then(async (results) => {
       await prisma.detection.update({
         where: { id: detection.id },

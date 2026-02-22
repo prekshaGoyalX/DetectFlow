@@ -16,7 +16,7 @@ export async function GET() {
 // POST /api/detectors — create a new detector
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, userId } = body;
+  const { name, description, userId} = body;
 
   if (!name || !userId) {
     return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const detector = await prisma.detector.create({
-    data: { name, description, userId },
+    data: { name, description, userId},
   });
 
   return NextResponse.json({ detector }, { status: 201 });
