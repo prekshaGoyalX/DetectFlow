@@ -15,6 +15,7 @@ interface Detection {
   id: string;
   inputImageUrl: string;
   results: { label: string; confidence: number }[] | null;
+  actualLabel: string | null;
   status: string;
   processingTimeMs: number | null;
   createdAt: string;
@@ -38,7 +39,7 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
   const [labelName, setLabelName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const detectInputRef = useRef<HTMLInputElement>(null);
-
+  const [detectionActualLabel, setDetectionActualLabel] = useState("");
   useEffect(() => {
     loadDetector();
     loadImages();
@@ -104,6 +105,9 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
 
     const formData = new FormData();
     formData.append("image", file);
+    if (detectionActualLabel.trim()) {
+      formData.append("actualLabel", detectionActualLabel.trim());
+    }
 
     const res = await fetch(`/api/detectors/${id}/detect`, {
       method: "POST",
@@ -281,7 +285,22 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
         {/* Detection Tab */}
         {tab === "detect" && (
           <div>
-            <div className="mb-6">
+            <div className="mb-6 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Actual Label <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={detectionActualLabel}
+                  onChange={(e) => setDetectionActualLabel(e.target.value)}
+                  placeholder="e.g. golden retriever, cracked weld"
+                  className="w-full max-w-xs border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Ground truth — compare against CLIP's prediction
+                </p>
+              </div>
               <label className="block">
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition cursor-pointer">
                   <p className="text-gray-500 text-sm">
@@ -306,12 +325,19 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                 {detections.map((det) => (
                   <div key={det.id} className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex gap-4">
-                      <div className="w-48 h-36 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                        <img
-                          src={det.inputImageUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="flex-shrink-0">
+                        <div className="w-48 h-36 bg-gray-100 rounded-lg overflow-hidden">
+                          <img
+                            src={det.inputImageUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {det.actualLabel && (
+                          <p className="text-xs text-gray-500 mt-2 text-center">
+                            actual: <span className="font-semibold text-gray-800">{det.actualLabel}</span>
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex-1">
@@ -337,30 +363,37 @@ export default function DetectorDetail({ params }: { params: Promise<{ id: strin
                         {det.results && (
                           <div className="space-y-2">
                             {(det.results as { label: string; confidence: number }[]).map(
-                              (r, i) => (
-                                <div key={i} className="space-y-1">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="font-medium text-gray-700">{r.label}</span>
-                                    <span className="text-gray-500">
-                                      {Math.round(r.confidence * 100)}%
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-2">
-                                    <div
-                                      className="h-2 rounded-full transition-all"
-                                      style={{
-                                        width: `${r.confidence * 100}%`,
-                                        backgroundColor:
-                                          r.confidence > 0.7
+                              (r, i) => {
+                                const isMatch = det.actualLabel &&
+                                  r.label.toLowerCase() === det.actualLabel.toLowerCase();
+                                return (
+                                  <div key={i} className="space-y-1">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className={`font-medium ${isMatch ? "text-green-700" : "text-gray-700"}`}>
+                                        {r.label} {isMatch && "✓"}
+                                      </span>
+                                      <span className="text-gray-500">
+                                        {Math.round(r.confidence * 100)}%
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-2">
+                                      <div
+                                        className="h-2 rounded-full transition-all"
+                                        style={{
+                                          width: `${r.confidence * 100}%`,
+                                          backgroundColor: isMatch
                                             ? "#10b981"
-                                            : r.confidence > 0.4
-                                              ? "#f59e0b"
-                                              : "#ef4444",
-                                      }}
-                                    />
+                                            : r.confidence > 0.7
+                                              ? "#10b981"
+                                              : r.confidence > 0.4
+                                                ? "#f59e0b"
+                                                : "#ef4444",
+                                        }}
+                                      />
+                                    </div>
                                   </div>
-                                </div>
-                              )
+                                );
+                              }
                             )}
                           </div>
                         )}

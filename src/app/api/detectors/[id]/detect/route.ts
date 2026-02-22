@@ -8,6 +8,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: detectorId } = await params;
+  const clonedReq2 = req.clone();
+  const nativeForm = await clonedReq2.formData();
+  const actualLabel = nativeForm.get("actualLabel") as string | null;
   const { file } = await parseFormData(req, "image");
 
   if (!file) {
@@ -34,6 +37,7 @@ export async function POST(
     data: {
       detectorId,
       inputImageUrl,
+      actualLabel: actualLabel || null,
       status: "processing",
     },
   });

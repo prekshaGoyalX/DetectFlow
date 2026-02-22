@@ -46,8 +46,9 @@ model Detection {
   id              String   @id @default(uuid())
   detectorId      String
   inputImageUrl   String
-  results         Json?    // [{label, confidence, bbox}]
-  status          String   @default("pending") // pending | processing | complete | failed
+  results         Json?
+  actualLabel     String?
+  status          String   @default("pending")
   processingTimeMs Int?
   createdAt       DateTime @default(now())
   processedAt     DateTime?
